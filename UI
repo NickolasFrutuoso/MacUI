@@ -5936,22 +5936,6 @@ function MacLib:CreateHUB(Settings)
 	LoadMeta()
 	RefreshConfigList()
  
-	-- ── Menu keybind section ─────────────────────────────────
-	local KeybindSection = SettingsTab:Section({ Side = "Left" })
-	KeybindSection:Header({ Name = "Menu" })
- 
-	KeybindSection:Keybind({
-		Name    = "Toggle Keybind",
-		Default = activeKeybind,
-		Callback = function() end,
-		onBinded = function(newBind)
-			activeKeybind = newBind
-			Window:SetKeybind(newBind)
-			SaveMenuKeybind(newBind.Name)
-			Window:Notify({ Title = title, Description = "Menu keybind set to " .. newBind.Name, Lifetime = 3 })
-		end,
-	}, "SettingsMenuKeybind")
- 
 	-- ── Config section ───────────────────────────────────────
 	local ConfigSection = SettingsTab:Section({ Side = "Left" })
 	ConfigSection:Header({ Name = "Config" })
@@ -6116,6 +6100,23 @@ function MacLib:CreateHUB(Settings)
 			end)
 		end
 	end
+
+	 
+	-- ── Menu keybind section ─────────────────────────────────
+	local KeybindSection = SettingsTab:Section({ Side = "Right" })
+	KeybindSection:Header({ Name = "Menu" })
+ 
+	KeybindSection:Keybind({
+		Name    = "Toggle Keybind",
+		Default = activeKeybind,
+		Callback = function() end,
+		onBinded = function(newBind)
+			activeKeybind = newBind
+			Window:SetKeybind(newBind)
+			SaveMenuKeybind(newBind.Name)
+			Window:Notify({ Title = title, Description = "Menu keybind set to " .. newBind.Name, Lifetime = 3 })
+		end,
+	}, "SettingsMenuKeybind")
 
 	-- ════════════════════════════════════════════════════════
 	--  PLAYER TAB
