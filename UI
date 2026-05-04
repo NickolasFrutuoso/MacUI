@@ -5860,14 +5860,14 @@ function MacLib:CreateHUB(Settings)
 	-- ── Tab Group ────────────────────────────────────────────
 	local TabGroup = Window:TabGroup()
 
-	-- User tabs go ABOVE the divider via callback
+	-- User tabs vão ACIMA do divider
 	if Settings.OnTabGroup then
-	    Settings.OnTabGroup(TabGroup, Window)
+		Settings.OnTabGroup(TabGroup, Window)
 	end
 	
-
+	TabGroup:Divider()  -- <- divider aparece AQUI
 	
-	-- System tabs always stay BELOW the divider
+	-- Sistema: Settings e Player ficam ABAIXO
 	local SettingsTab = TabGroup:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" })
 	local PlayerTab   = TabGroup:Tab({ Name = "Player",   Image = "rbxassetid://7743875962" })
  
