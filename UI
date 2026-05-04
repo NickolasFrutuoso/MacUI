@@ -5865,8 +5865,7 @@ function MacLib:CreateHUB(Settings)
 	    Settings.OnTabGroup(TabGroup, Window)
 	end
 	
-	-- Divider
-	TabGroup:Divider()
+
 	
 	-- System tabs always stay BELOW the divider
 	local SettingsTab = TabGroup:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" })
