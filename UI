@@ -5858,12 +5858,19 @@ function MacLib:CreateHUB(Settings)
 	})
  
 	-- ── Tab Group ────────────────────────────────────────────
-	local TabGroup    = Window:TabGroup()
+	local TabGroup = Window:TabGroup()
+
+	-- User tabs go ABOVE the divider via callback
+	if Settings.OnTabGroup then
+	    Settings.OnTabGroup(TabGroup, Window)
+	end
+	
+	-- Divider
+	TabGroup:Divider()
+	
+	-- System tabs always stay BELOW the divider
 	local SettingsTab = TabGroup:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" })
 	local PlayerTab   = TabGroup:Tab({ Name = "Player",   Image = "rbxassetid://7743875962" })
- 
-	-- Divider between system tabs and user-added tabs
-	TabGroup:Divider()
  
 	-- ════════════════════════════════════════════════════════
 	--  SETTINGS TAB — config system
@@ -6113,6 +6120,7 @@ function MacLib:CreateHUB(Settings)
  
 	-- ── Final setup ──────────────────────────────────────────
 	MacLib:SetFolder("Maclib")
+	SettingsTab:Select()
 	SettingsTab:Select()
  
 	-- ── Public API ───────────────────────────────────────────
