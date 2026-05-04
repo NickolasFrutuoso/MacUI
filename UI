@@ -6120,8 +6120,9 @@ function MacLib:CreateHUB(Settings)
  
 	-- ── Final setup ──────────────────────────────────────────
 	MacLib:SetFolder("Maclib")
+	PlayerTab:Select()
 	SettingsTab:Select()
-	SettingsTab:Select()
+
  
 	-- ── Public API ───────────────────────────────────────────
 	return {
