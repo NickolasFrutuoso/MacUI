@@ -6117,7 +6117,209 @@ function MacLib:CreateHUB(Settings)
 			end)
 		end
 	end
- 
+
+	-- ════════════════════════════════════════════════════════
+	--  PLAYER TAB
+	-- ════════════════════════════════════════════════════════
+	local Players_          = game:GetService("Players")
+	local RunService_       = game:GetService("RunService")
+	local UserInputService_ = game:GetService("UserInputService")
+	local LocalPlayer_      = Players_.LocalPlayer
+	local Character_        = LocalPlayer_.Character or LocalPlayer_.CharacterAdded:Wait()
+	local Humanoid_         = Character_:WaitForChild("Humanoid")
+
+	LocalPlayer_.CharacterAdded:Connect(function(char)
+		Character_ = char
+		Humanoid_  = char:WaitForChild("Humanoid")
+	end)
+
+	local walkSpeedEnabled = false
+	local walkSpeedValue   = 16
+	local PlayerSection = PlayerTab:Section({ Side = "Left" })
+	PlayerSection:Header({ Name = "Walk" })
+	PlayerSection:Toggle({
+		Name = "WalkSpeed", Default = false,
+		Callback = function(state)
+			walkSpeedEnabled = state
+			if Humanoid_ then Humanoid_.WalkSpeed = state and walkSpeedValue or 16 end
+		end,
+	}, "PlayerWalkSpeedToggle")
+	PlayerSection:Slider({
+		Name = "WalkSpeed Value", Minimum = 16, Maximum = 100, Default = 16,
+		Precision = 0, DisplayMethod = "Value",
+		Callback = function(value)
+			walkSpeedValue = value
+			if walkSpeedEnabled and Humanoid_ then Humanoid_.WalkSpeed = value end
+		end,
+	}, "PlayerWalkSpeedValue")
+	FeatureRegistry:Register("PlayerWalkSpeedToggle", function(state)
+		if state and Humanoid_ then Humanoid_.WalkSpeed = walkSpeedValue end
+	end)
+
+	local jumpPowerEnabled = false
+	local jumpPowerValue   = 50
+	local JumpSection = PlayerTab:Section({ Side = "Right" })
+	JumpSection:Header({ Name = "Jump" })
+	JumpSection:Toggle({
+		Name = "JumpPower", Default = false,
+		Callback = function(state)
+			jumpPowerEnabled = state
+			if Humanoid_ then
+				Humanoid_.UseJumpPower = true
+				Humanoid_.JumpPower = state and jumpPowerValue or 50
+			end
+		end,
+	}, "PlayerJumpPowerToggle")
+	JumpSection:Slider({
+		Name = "JumpPower Value", Minimum = 50, Maximum = 300, Default = 50,
+		Precision = 0, DisplayMethod = "Value",
+		Callback = function(value)
+			jumpPowerValue = value
+			if jumpPowerEnabled and Humanoid_ then
+				Humanoid_.UseJumpPower = true
+				Humanoid_.JumpPower = value
+			end
+		end,
+	}, "PlayerJumpPowerValue")
+	FeatureRegistry:Register("PlayerJumpPowerToggle", function(state)
+		if state and Humanoid_ then
+			Humanoid_.UseJumpPower = true
+			Humanoid_.JumpPower = jumpPowerValue
+		end
+	end)
+
+	local flyEnabled    = false
+	local flySpeed      = 50
+	local flyConnection = nil
+	local flyBodyVel    = nil
+	local flyBodyGyro   = nil
+	local flyActive     = false
+	local FlySection = PlayerTab:Section({ Side = "Left" })
+	FlySection:Header({ Name = "Fly" })
+
+	local function EnableFly()
+		if flyActive then return end
+		flyActive = true
+		local char     = LocalPlayer_.Character
+		local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+		if not rootPart then flyActive = false return end
+		flyBodyVel          = Instance.new("BodyVelocity")
+		flyBodyVel.Velocity = Vector3.zero
+		flyBodyVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+		flyBodyVel.Parent   = rootPart
+		flyBodyGyro           = Instance.new("BodyGyro")
+		flyBodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+		flyBodyGyro.D         = 50
+		flyBodyGyro.Parent    = rootPart
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.PlatformStand = true end
+		flyConnection = RunService_.RenderStepped:Connect(function()
+			local camera = workspace.CurrentCamera
+			local cf, vel = camera.CFrame, Vector3.zero
+			if UserInputService_:IsKeyDown(Enum.KeyCode.W)         then vel += cf.LookVector end
+			if UserInputService_:IsKeyDown(Enum.KeyCode.S)         then vel -= cf.LookVector end
+			if UserInputService_:IsKeyDown(Enum.KeyCode.A)         then vel -= cf.RightVector end
+			if UserInputService_:IsKeyDown(Enum.KeyCode.D)         then vel += cf.RightVector end
+			if UserInputService_:IsKeyDown(Enum.KeyCode.Space)     then vel += Vector3.new(0,1,0) end
+			if UserInputService_:IsKeyDown(Enum.KeyCode.LeftShift) then vel -= Vector3.new(0,1,0) end
+			if flyBodyVel  then flyBodyVel.Velocity = vel * flySpeed end
+			if flyBodyGyro then flyBodyGyro.CFrame  = cf end
+		end)
+	end
+
+	local function DisableFly()
+		if not flyActive then return end
+		flyActive = false
+		if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+		local char     = LocalPlayer_.Character
+		local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+		if flyBodyVel  then flyBodyVel.Velocity = Vector3.zero flyBodyVel.MaxForce = Vector3.zero flyBodyVel:Destroy() flyBodyVel = nil end
+		if flyBodyGyro then flyBodyGyro.MaxTorque = Vector3.zero flyBodyGyro:Destroy() flyBodyGyro = nil end
+		task.defer(function()
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.PlatformStand = false end
+			if rootPart then
+				rootPart.AssemblyLinearVelocity  = Vector3.zero
+				rootPart.AssemblyAngularVelocity = Vector3.zero
+			end
+		end)
+	end
+
+	LocalPlayer_.CharacterAdded:Connect(function(char)
+		Character_ = char
+		Humanoid_  = char:WaitForChild("Humanoid")
+		if flyEnabled then task.wait(0.1) DisableFly() EnableFly() end
+	end)
+
+	FlySection:Toggle({
+		Name = "Fly", Default = false,
+		Callback = function(state)
+			flyEnabled = state
+			if state then EnableFly() else DisableFly() end
+		end,
+	}, "PlayerFlyToggle")
+	FlySection:Keybind({
+		Name = "Fly Keybind", Default = Enum.KeyCode.F3,
+		Callback = function()
+			MacLib.Options["PlayerFlyToggle"]:UpdateState(not flyEnabled)
+		end,
+	}, "PlayerFlyKeybind")
+	FlySection:Slider({
+		Name = "Fly Speed", Minimum = 0, Maximum = 300, Default = 50,
+		Precision = 0, DisplayMethod = "Value",
+		Callback = function(value) flySpeed = value end,
+	}, "PlayerFlySpeed")
+	FeatureRegistry:Register("PlayerFlyToggle", function(state)
+		DisableFly()
+		if state then EnableFly() end
+	end)
+
+	local MiscSection = PlayerTab:Section({ Side = "Right" })
+	MiscSection:Header({ Name = "Misc" })
+	local antiAFKConnection = nil
+	MiscSection:Toggle({
+		Name = "Anti-AFK", Default = false,
+		Callback = function(state)
+			if state then
+				antiAFKConnection = LocalPlayer_.Idled:Connect(function()
+					local vrs = game:GetService("VirtualInputManager")
+					if vrs then
+						vrs:SendKeyEvent(true,  Enum.KeyCode.W, false, game)
+						vrs:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+					end
+				end)
+			else
+				if antiAFKConnection then antiAFKConnection:Disconnect() antiAFKConnection = nil end
+			end
+		end,
+	}, "PlayerAntiAFK")
+	MiscSection:Toggle({
+		Name = "FPS Boost", Default = false,
+		Callback = function(state)
+			local lighting = game:GetService("Lighting")
+			for _, e in ipairs(lighting:GetChildren()) do
+				if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect")
+					or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect")
+				then e.Enabled = not state end
+			end
+			settings().Rendering.QualityLevel = state and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic
+		end,
+	}, "PlayerFPSBoost")
+	MiscSection:Toggle({
+		Name = "Auto Hide UI", Default = false,
+		Callback = function(state)
+			local SG = game:GetService("StarterGui")
+			for _, item in ipairs({ Enum.CoreGuiType.Chat, Enum.CoreGuiType.PlayerList,
+				Enum.CoreGuiType.Backpack, Enum.CoreGuiType.Health, Enum.CoreGuiType.EmotesMenu }) do
+				pcall(function() SG:SetCoreGuiEnabled(item, not state) end)
+			end
+		end,
+	}, "PlayerAutoHideUI")
+
+	Window.onUnloaded(function()
+		DisableFly()
+	end)
+
 	-- ── Final setup ──────────────────────────────────────────
 	MacLib:SetFolder("Maclib")
 	PlayerTab:Select()
