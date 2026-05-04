@@ -4702,6 +4702,21 @@ function MacLib:Window(Settings)
 				return SectionFunctions
 			end
 
+			function SectionFunctions:Divider()
+				local dividerLine = Instance.new("Frame")
+				dividerLine.Name = "TabDivider"
+				dividerLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				dividerLine.BackgroundTransparency = 0.9
+				dividerLine.BorderColor3 = Color3.fromRGB(0, 0, 0)
+				dividerLine.BorderSizePixel = 0
+				dividerLine.Size = UDim2.new(1, -21, 0, 1)
+				dividerLine.AnchorPoint = Vector2.new(0.5, 0)
+				dividerLine.Position = UDim2.fromScale(0.5, 0)
+				dividerLine.LayoutOrder = tabIndex
+				dividerLine.Parent = sectionTabSwitchers
+				tabIndex += 1
+			end
+
 			local function SelectCurrentTab()
 				local easetime = 0.15
 
@@ -5724,267 +5739,410 @@ function MacLib:Window(Settings)
 	return WindowFunctions
 end
 
-function MacLib:Demo()
-	local Window = MacLib:Window({
-		Title = "Maclib Demo",
-		Subtitle = "This is a subtitle.",
-		Size = UDim2.fromOffset(868, 650),
-		DragStyle = 1,
-		DisabledWindowControls = {},
-		ShowUserInfo = true,
-		Keybind = Enum.KeyCode.RightControl,
-		AcrylicBlur = true,
-	})
-
-	local globalSettings = {
-		UIBlurToggle = Window:GlobalSetting({
-			Name = "UI Blur",
-			Default = Window:GetAcrylicBlurState(),
-			Callback = function(bool)
-				Window:SetAcrylicBlurState(bool)
-				Window:Notify({
-					Title = Window.Settings.Title,
-					Description = (bool and "Enabled" or "Disabled") .. " UI Blur",
-					Lifetime = 5
-				})
-			end,
-		}),
-		NotificationToggler = Window:GlobalSetting({
-			Name = "Notifications",
-			Default = Window:GetNotificationsState(),
-			Callback = function(bool)
-				Window:SetNotificationsState(bool)
-				Window:Notify({
-					Title = Window.Settings.Title,
-					Description = (bool and "Enabled" or "Disabled") .. " Notifications",
-					Lifetime = 5
-				})
-			end,
-		}),
-		ShowUserInfo = Window:GlobalSetting({
-			Name = "Show User Info",
-			Default = Window:GetUserInfoState(),
-			Callback = function(bool)
-				Window:SetUserInfoState(bool)
-				Window:Notify({
-					Title = Window.Settings.Title,
-					Description = (bool and "Showing" or "Redacted") .. " User Info",
-					Lifetime = 5
-				})
-			end,
-		})
-	}
-
-	local tabGroups = {
-		TabGroup1 = Window:TabGroup()
-	}
-
-	local tabs = {
-		Main = tabGroups.TabGroup1:Tab({ Name = "Demo", Image = "rbxassetid://18821914323" }),
-		Settings = tabGroups.TabGroup1:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" })
-	}
-
-	local sections = {
-		MainSection1 = tabs.Main:Section({ Side = "Left" }),
-	}
-
-	sections.MainSection1:Header({
-		Name = "Header #1"
-	})
-
-	sections.MainSection1:Button({
-		Name = "Button",
-		Callback = function()
-			Window:Dialog({
-				Title = Window.Settings.Title,
-				Description = "Lorem ipsum odor amet, consectetuer adipiscing elit. Eros vestibulum aliquet mattis, ex platea nunc.",
-				Buttons = {
-					{
-						Name = "Confirm",
-						Callback = function()
-							print("Confirmed!")
-						end,
-					},
-					{
-						Name = "Cancel"
-					}
-				}
-			})
-		end,
-	})
-
-	sections.MainSection1:Input({
-		Name = "Input",
-		Placeholder = "Input",
-		AcceptedCharacters = "All",
-		Callback = function(input)
-			Window:Notify({
-				Title = Window.Settings.Title,
-				Description = "Successfully set input to " .. input
-			})
-		end,
-		onChanged = function(input)
-			print("Input is now " .. input)
-		end,
-	}, "Input")
-
-	sections.MainSection1:Slider({
-		Name = "Slider",
-		Default = 50,
-		Minimum = 0,
-		Maximum = 100,
-		DisplayMethod = "Percent",
-		Precision = 0,
-		Callback = function(Value)
-			print("Changed to ".. Value)
+function MacLib:CreateHUB(Settings)
+	Settings = Settings or {}
+ 
+	local title    = Settings.Title    or "Noliar HUB"
+	local subtitle = Settings.Subtitle or game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+	local size     = Settings.Size     or UDim2.fromOffset(868, 650)
+	local keybind  = Settings.Keybind  or Enum.KeyCode.RightControl
+ 
+	-- ── Feature Registry ─────────────────────────────────────
+	local FeatureRegistry = {}
+	FeatureRegistry._hooks = {}
+ 
+	function FeatureRegistry:Register(flag, applyFn)
+		self._hooks[flag] = applyFn
+	end
+ 
+	function FeatureRegistry:ApplyAll(data)
+		-- Step 1: sliders, dropdowns, colorpickers
+		for flag, value in pairs(data) do
+			local obj = MacLib.Options[flag]
+			if obj then
+				if obj.Class == "Slider" then
+					local num = tonumber(value)
+					obj:UpdateValue(num)
+					if obj.Settings and obj.Settings.Callback then
+						pcall(obj.Settings.Callback, num)
+					end
+				elseif obj.Class == "Dropdown" then
+					obj:UpdateSelection(value)
+					if obj.Settings and obj.Settings.Callback then
+						pcall(obj.Settings.Callback, value)
+					end
+				elseif obj.Class == "Colorpicker" then
+					if type(value) == "table" then
+						local color = Color3.new(value[1], value[2], value[3])
+						obj:UpdateValue(color)
+						if obj.Settings and obj.Settings.Callback then
+							pcall(obj.Settings.Callback, color)
+						end
+					end
+				end
+			end
 		end
-	}, "Slider")
-
-	sections.MainSection1:Toggle({
-		Name = "Toggle",
-		Default = false,
-		Callback = function(value)
-			Window:Notify({
-				Title = Window.Settings.Title,
-				Description = (value and "Enabled " or "Disabled ") .. "Toggle"
-			})
-		end,
-	}, "Toggle")
-
-	sections.MainSection1:Keybind({
-		Name = "Keybind",
-		Blacklist = false,
-		Callback = function(binded)
-			Window:Notify({
-				Title = "Demo Window",
-				Description = "Pressed keybind - "..tostring(binded.Name),
-				Lifetime = 3
-			})
-		end,
-		onBinded = function(bind)
-			Window:Notify({
-				Title = "Demo Window",
-				Description = "Successfully Binded Keybind to - "..tostring(bind.Name),
-				Lifetime = 3
-			})
-		end,
-	}, "Keybind")
-
-	sections.MainSection1:Colorpicker({
-		Name = "Colorpicker",
-		Default = Color3.fromRGB(0, 255, 255),
-		Callback = function(color)
-			print("Color: ", color)
-		end,
-	}, "Colorpicker")
-
-	local alphaColorPicker = sections.MainSection1:Colorpicker({
-		Name = "Transparency Colorpicker",
-		Default = Color3.fromRGB(255,0,0),
-		Alpha = 0,
-		Callback = function(color, alpha)
-			print("Color: ", color, " Alpha: ", alpha)
-		end,
-	}, "TransparencyColorpicker")
-
-	local rainbowActive
-	local rainbowConnection
-	local hue = 0
-
-	sections.MainSection1:Toggle({
-		Name = "Rainbow",
-		Default = false,
-		Callback = function(value)
-			rainbowActive = value
-
-			if rainbowActive then
-				rainbowConnection = game:GetService("RunService").RenderStepped:Connect(function(deltaTime)
-					hue = (hue + deltaTime * 0.1) % 1
-					alphaColorPicker:SetColor(Color3.fromHSV(hue, 1, 1))
-				end)
-			elseif rainbowConnection then
-				rainbowConnection:Disconnect()
-				rainbowConnection = nil
+		-- Step 2: toggles
+		for flag, value in pairs(data) do
+			local obj = MacLib.Options[flag]
+			if obj and obj.Class == "Toggle" then
+				obj:UpdateState(value)
 			end
-		end,
-	}, "RainbowToggle")
-
-	local optionTable = {
-		"Apple",
-		"Banana",
-		"Orange",
-		"Grapes",
-		"Pineapple",
-		"Mango",
-		"Strawberry",
-		"Blueberry",
-		"Watermelon",
-		"Peach"
-	}
-
-	local Dropdown = sections.MainSection1:Dropdown({
-		Name = "Dropdown",
-		Multi = false,
-		Required = true,
-		Options = optionTable,
-		Default = 1,
-		Callback = function(Value)
-			print("Dropdown changed: ".. Value)
-		end,
-	}, "Dropdown")
-
-	local MultiDropdown = sections.MainSection1:Dropdown({
-		Name = "Multi Dropdown",
-		Search = true,
-		Multi = true,
-		Required = false,
-		Options = optionTable,
-		Default = {"Apple", "Orange"},
-		Callback = function(Value)
-			local Values = {}
-			for Value, State in next, Value do
-				table.insert(Values, Value)
+		end
+		-- Step 3: custom hooks
+		for flag, applyFn in pairs(self._hooks) do
+			if data[flag] ~= nil then
+				pcall(applyFn, data[flag])
 			end
-			print("Mutlidropdown changed:", table.concat(Values, ", "))
+		end
+	end
+ 
+	-- ── Keybind persistence (separate file, never mixed with configs) ──
+	local HS         = HttpService
+	local KB_PATH    = MacLib.Folder .. "/_menukeybind.json"
+ 
+	local function EnsureBaseFolder()
+		if not isfolder(MacLib.Folder) then makefolder(MacLib.Folder) end
+	end
+	local function SaveMenuKeybind(kbName)
+		EnsureBaseFolder()
+		writefile(KB_PATH, HS:JSONEncode({ keybind = kbName }))
+	end
+	local function LoadMenuKeybind()
+		EnsureBaseFolder()
+		if isfile(KB_PATH) then
+			local ok, data = pcall(function() return HS:JSONDecode(readfile(KB_PATH)) end)
+			if ok and data and data.keybind then
+				local ok2, kbEnum = pcall(function() return Enum.KeyCode[data.keybind] end)
+				if ok2 and kbEnum then return kbEnum end
+			end
+		end
+		return keybind
+	end
+ 
+	local activeKeybind = LoadMenuKeybind()
+ 
+	-- ── Window ───────────────────────────────────────────────
+	local Window = MacLib:Window({
+		Title                  = title,
+		Subtitle               = subtitle,
+		Size                   = size,
+		DragStyle              = 1,
+		DisabledWindowControls = {},
+		ShowUserInfo           = true,
+		Keybind                = activeKeybind,
+		AcrylicBlur            = true,
+	})
+ 
+	-- ── Global Settings ──────────────────────────────────────
+	Window:GlobalSetting({
+		Name = "UI Blur", Default = true,
+		Callback = function(bool)
+			Window:SetAcrylicBlurState(bool)
+			Window:Notify({ Title = title, Description = (bool and "Enabled" or "Disabled") .. " UI Blur", Lifetime = 5 })
 		end,
-	}, "MultiDropdown")
-
-	sections.MainSection1:Button({
-		Name = "Update Selection",
+	})
+	Window:GlobalSetting({
+		Name = "Notifications", Default = true,
+		Callback = function(bool)
+			Window:SetNotificationsState(bool)
+			Window:Notify({ Title = title, Description = (bool and "Enabled" or "Disabled") .. " Notifications", Lifetime = 5 })
+		end,
+	})
+	Window:GlobalSetting({
+		Name = "Show User Info", Default = true,
+		Callback = function(bool)
+			Window:SetUserInfoState(bool)
+			Window:Notify({ Title = title, Description = (bool and "Showing" or "Redacted") .. " User Info", Lifetime = 5 })
+		end,
+	})
+ 
+	-- ── Tab Group ────────────────────────────────────────────
+	local TabGroup    = Window:TabGroup()
+	local SettingsTab = TabGroup:Tab({ Name = "Settings", Image = "rbxassetid://10734950309" })
+	local PlayerTab   = TabGroup:Tab({ Name = "Player",   Image = "rbxassetid://7743875962" })
+ 
+	-- Divider between system tabs and user-added tabs
+	TabGroup:Divider()
+ 
+	-- ════════════════════════════════════════════════════════
+	--  SETTINGS TAB — config system
+	-- ════════════════════════════════════════════════════════
+	local configs          = {}
+	local selectedConfig   = nil
+	local configName       = ""
+	local accountExclusive = false
+	local accountAutoload  = false
+	local autoloadNormal   = "none"
+	local autoloadAccount  = "none"
+ 
+	local CONFIG_FOLDER = MacLib.Folder .. "/Configs"
+ 
+	local function EnsureConfigFolder()
+		if not isfolder(CONFIG_FOLDER) then makefolder(CONFIG_FOLDER) end
+	end
+	local function GetConfigPath(name)
+		return CONFIG_FOLDER .. "/" .. name .. ".json"
+	end
+	local function SaveMeta()
+		writefile(CONFIG_FOLDER .. "/_meta.json", HS:JSONEncode({
+			autoloadNormal  = autoloadNormal,
+			autoloadAccount = autoloadAccount,
+		}))
+	end
+	local function LoadMeta()
+		local path = CONFIG_FOLDER .. "/_meta.json"
+		if isfile(path) then
+			local ok, meta = pcall(function() return HS:JSONDecode(readfile(path)) end)
+			if ok and meta then
+				autoloadNormal  = meta.autoloadNormal  or "none"
+				autoloadAccount = meta.autoloadAccount or "none"
+			end
+		end
+	end
+	local function RefreshConfigList()
+		EnsureConfigFolder()
+		configs = {}
+		for _, path in ipairs(listfiles(CONFIG_FOLDER)) do
+			local name = path:match("([^/\\]+)%.json$")
+			if name and name ~= "_meta" then table.insert(configs, name) end
+		end
+		return configs
+	end
+	local function GetCurrentConfigData()
+		local data = {}
+		for flag, obj in pairs(MacLib.Options) do
+			if     obj.Class == "Toggle"      then data[flag] = obj:GetState()
+			elseif obj.Class == "Slider"      then data[flag] = obj:GetValue()
+			elseif obj.Class == "Input"       then data[flag] = obj.Text
+			elseif obj.Class == "Dropdown"    then data[flag] = obj.Value
+			elseif obj.Class == "Keybind"     then local b = obj:GetBind() data[flag] = b and b.Name or nil
+			elseif obj.Class == "Colorpicker" then local c = obj.Color if c then data[flag] = {c.R,c.G,c.B} end
+			end
+		end
+		return data
+	end
+	local function ApplyConfigData(data)
+		FeatureRegistry:ApplyAll(data)
+	end
+ 
+	EnsureConfigFolder()
+	LoadMeta()
+	RefreshConfigList()
+ 
+	-- ── Menu keybind section ─────────────────────────────────
+	local KeybindSection = SettingsTab:Section({ Side = "Left" })
+	KeybindSection:Header({ Name = "Menu" })
+ 
+	KeybindSection:Keybind({
+		Name    = "Toggle Keybind",
+		Default = activeKeybind,
+		Callback = function() end,
+		onBinded = function(newBind)
+			activeKeybind = newBind
+			Window:SetKeybind(newBind)
+			SaveMenuKeybind(newBind.Name)
+			Window:Notify({ Title = title, Description = "Menu keybind set to " .. newBind.Name, Lifetime = 3 })
+		end,
+	}, "SettingsMenuKeybind")
+ 
+	-- ── Config section ───────────────────────────────────────
+	local ConfigSection = SettingsTab:Section({ Side = "Left" })
+	ConfigSection:Header({ Name = "Config" })
+ 
+	ConfigSection:Input({
+		Name = "Config Name", Placeholder = "Enter config name...",
+		Default = "", AcceptedCharacters = "AlphaNumeric",
+		Callback = function(v) configName = v end,
+	}, "SettingsConfigName")
+ 
+	ConfigSection:Toggle({
+		Name = "Account Exclusive", Default = false,
+		Callback = function(s) accountExclusive = s end,
+	}, "SettingsAccountExclusive")
+ 
+	ConfigSection:Toggle({
+		Name = "Account Autoload", Default = false,
+		Callback = function(s) accountAutoload = s end,
+	}, "SettingsAccountAutoload")
+ 
+	ConfigSection:Button({
+		Name = "Create Config",
 		Callback = function()
-			Dropdown:UpdateSelection("Grapes")
-			MultiDropdown:UpdateSelection({"Banana", "Pineapple"})
+			if configName == "" then
+				Window:Notify({ Title = "Settings", Description = "Type a config name first!", Lifetime = 3 }) return
+			end
+			local finalName = configName
+			if accountExclusive then
+				finalName = finalName .. "_" .. tostring(game:GetService("Players").LocalPlayer.UserId)
+			end
+			writefile(GetConfigPath(finalName), HS:JSONEncode(GetCurrentConfigData()))
+			RefreshConfigList()
+			if accountAutoload then autoloadAccount = finalName SaveMeta() end
+			Window:Notify({ Title = "Config Created", Description = '"' .. finalName .. '" saved.', Lifetime = 3 })
 		end,
 	})
-
-	sections.MainSection1:Divider()
-
-	sections.MainSection1:Header({
-		Text = "Header #2"
+ 
+	-- ── Config List section ──────────────────────────────────
+	local ConfigListSection = SettingsTab:Section({ Side = "Right" })
+	ConfigListSection:Header({ Name = "Config List" })
+ 
+	local ConfigDropdown = ConfigListSection:Dropdown({
+		Name = "Select Config",
+		Options = #configs > 0 and configs or { "nil" },
+		Default = 1,
+		Callback = function(v) selectedConfig = (v ~= "nil") and v or nil end,
+	}, "SettingsConfigDropdown")
+ 
+	ConfigListSection:Button({
+		Name = "Load Config",
+		Callback = function()
+			if not selectedConfig then
+				Window:Notify({ Title = "Settings", Description = "Select a config first.", Lifetime = 3 }) return
+			end
+			local path = GetConfigPath(selectedConfig)
+			if not isfile(path) then return end
+			local ok, data = pcall(function() return HS:JSONDecode(readfile(path)) end)
+			if ok and data then
+				ApplyConfigData(data)
+				Window:Notify({ Title = "Config Loaded", Description = '"' .. selectedConfig .. '" applied.', Lifetime = 3 })
+			end
+		end,
 	})
-
-	sections.MainSection1:Paragraph({
-		Header = "Paragraph",
-		Body = "Paragraph body. Lorem ipsum odor amet, consectetuer adipiscing elit. Morbi tempus netus aliquet per velit est gravida."
+	ConfigListSection:Button({
+		Name = "Overwrite Config",
+		Callback = function()
+			if not selectedConfig then return end
+			writefile(GetConfigPath(selectedConfig), HS:JSONEncode(GetCurrentConfigData()))
+			Window:Notify({ Title = "Config Overwritten", Description = '"' .. selectedConfig .. '" updated.', Lifetime = 3 })
+		end,
 	})
-
-	sections.MainSection1:Label({
-		Text = "Label. Lorem ipsum odor amet, consectetuer adipiscing elit."
+	ConfigListSection:Button({
+		Name = "Delete Config",
+		Callback = function()
+			if not selectedConfig then return end
+			if isfile(GetConfigPath(selectedConfig)) then delfile(GetConfigPath(selectedConfig)) end
+			if autoloadNormal  == selectedConfig then autoloadNormal  = "none" end
+			if autoloadAccount == selectedConfig then autoloadAccount = "none" end
+			SaveMeta()
+			selectedConfig = nil
+			RefreshConfigList()
+			ConfigDropdown:ClearOptions()
+			ConfigDropdown:InsertOptions(#configs > 0 and configs or { "nil" })
+			Window:Notify({ Title = "Config Deleted", Description = "Config removed.", Lifetime = 3 })
+		end,
 	})
-
-	sections.MainSection1:SubLabel({
-		Text = "Sub-Label. Lorem ipsum odor amet, consectetuer adipiscing elit."
+	ConfigListSection:Button({
+		Name = "Refresh List",
+		Callback = function()
+			RefreshConfigList()
+			ConfigDropdown:ClearOptions()
+			ConfigDropdown:InsertOptions(#configs > 0 and configs or { "nil" })
+			Window:Notify({ Title = "Settings", Description = "Config list refreshed.", Lifetime = 2 })
+		end,
 	})
-
+ 
+	-- ── Autoload section ─────────────────────────────────────
+	local AutoloadSection = SettingsTab:Section({ Side = "Left" })
+	AutoloadSection:Header({ Name = "Autoload" })
+ 
+	local autoloadStatusLabel
+	local function UpdateAutoloadLabel()
+		if not autoloadStatusLabel then return end
+		local n        = autoloadNormal ~= "none" and autoloadNormal or "none"
+		local aDisplay = "none"
+		if autoloadAccount ~= "none" then
+			local uid      = tostring(game:GetService("Players").LocalPlayer.UserId)
+			local baseName = autoloadAccount:gsub("_" .. uid .. "$", "")
+			aDisplay       = baseName .. " (" .. game:GetService("Players").LocalPlayer.Name .. ")"
+		end
+		autoloadStatusLabel:UpdateName("Autoload: " .. n .. "  |  Account: " .. aDisplay)
+	end
+ 
+	AutoloadSection:Button({
+		Name = "Set as Normal Autoload",
+		Callback = function()
+			if not selectedConfig then
+				Window:Notify({ Title = "Settings", Description = "Select a config first.", Lifetime = 3 }) return
+			end
+			autoloadNormal = selectedConfig
+			SaveMeta() UpdateAutoloadLabel()
+			Window:Notify({ Title = "Autoload Set", Description = '"' .. selectedConfig .. '" loads for all accounts.', Lifetime = 3 })
+		end,
+	})
+	AutoloadSection:Button({
+		Name = "Set as Account Autoload",
+		Callback = function()
+			if not selectedConfig then
+				Window:Notify({ Title = "Settings", Description = "Select a config first.", Lifetime = 3 }) return
+			end
+			autoloadAccount = selectedConfig
+			SaveMeta() UpdateAutoloadLabel()
+			Window:Notify({ Title = "Account Autoload Set", Description = '"' .. selectedConfig .. '" loads for this account only.', Lifetime = 3 })
+		end,
+	})
+	AutoloadSection:Button({
+		Name = "Reset Autoloads",
+		Callback = function()
+			autoloadNormal = "none" autoloadAccount = "none"
+			SaveMeta() UpdateAutoloadLabel()
+			Window:Notify({ Title = "Autoloads Reset", Description = "No config will autoload.", Lifetime = 3 })
+		end,
+	})
+	autoloadStatusLabel = AutoloadSection:Button({ Name = "Autoload: none  |  Account: none", Callback = function() end })
+	UpdateAutoloadLabel()
+ 
+	-- ── Autoload on startup ──────────────────────────────────
+	do
+		local toLoad = nil
+		if autoloadAccount ~= "none" and isfile(GetConfigPath(autoloadAccount)) then
+			toLoad = autoloadAccount
+		elseif autoloadNormal ~= "none" and isfile(GetConfigPath(autoloadNormal)) then
+			toLoad = autoloadNormal
+		end
+		if toLoad then
+			task.delay(1.5, function()
+				local ok, data = pcall(function() return HS:JSONDecode(readfile(GetConfigPath(toLoad))) end)
+				if ok and data then
+					ApplyConfigData(data)
+					Window:Notify({ Title = "Auto-loaded", Description = '"' .. toLoad .. '" was loaded automatically.', Lifetime = 4 })
+				end
+			end)
+		end
+	end
+ 
+	-- ── Final setup ──────────────────────────────────────────
 	MacLib:SetFolder("Maclib")
-	tabs.Settings:InsertConfigSection("Left")
-
-	Window.onUnloaded(function()
-		print("Unloaded!")
-	end)
-
-	tabs.Main:Select()
-	MacLib:LoadAutoLoadConfig()
+	SettingsTab:Select()
+ 
+	-- ── Public API ───────────────────────────────────────────
+	return {
+		Window          = Window,
+		TabGroup        = TabGroup,
+		SettingsTab     = SettingsTab,
+		PlayerTab       = PlayerTab,
+		FeatureRegistry = FeatureRegistry,
+		ApplyConfigData = ApplyConfigData,
+	}
 end
+ 
+ 
+-- ════════════════════════════════════════════════════════════
+--  USAGE — in your game script (NOT inside the lib):
+--
+--  local HUB = MacLib:CreateHUB({
+--      Title    = "Noliar HUB",
+--      Subtitle = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+--  })
+--
+--  local Window          = HUB.Window
+--  local TabGroup        = HUB.TabGroup       -- add new tabs below the divider
+--  local PlayerTab       = HUB.PlayerTab      -- add sections here
+--  local FeatureRegistry = HUB.FeatureRegistry
+--
+--  -- Example: new tab below the divider
+--  local CombatTab = TabGroup:Tab({ Name = "Combat", Image = "rbxassetid://XXXXX" })
+-- ════════════════════════════════════════════════════════════
+
 
 return MacLib
